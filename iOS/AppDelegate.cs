@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using Foundation;
+﻿using Foundation;
 using UIKit;
-using Microsoft.Identity.Client;
+
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace AzureB2CXamTraditional.iOS
 {
@@ -25,12 +22,6 @@ namespace AzureB2CXamTraditional.iOS
             _window.RootViewController = new LoginViewController();
             _window.MakeKeyAndVisible();
 
-            return true;
-        }
-
-        public override bool OpenUrl(UIApplication app, NSUrl url, NSDictionary options)
-        {
-            AuthenticationContinuationHelper.SetAuthenticationContinuationEventArgs(url);
             return true;
         }
     }

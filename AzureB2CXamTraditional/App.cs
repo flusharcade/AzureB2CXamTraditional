@@ -1,10 +1,4 @@
-﻿using Microsoft.Identity.Client;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+﻿
 namespace AzureB2CXamTraditional
 {
     public static class App

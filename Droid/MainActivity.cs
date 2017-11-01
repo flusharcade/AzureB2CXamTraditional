@@ -38,7 +38,7 @@ namespace AzureB2CXamTraditional.Droid
         /// <summary>
         /// The loading.
         /// </summary>
-        private bool loading = false;
+        private bool _loading = false;
 
         /// <summary>
         /// Ons the create.
@@ -56,9 +56,9 @@ namespace AzureB2CXamTraditional.Droid
             _btnSignInSignOut = FindViewById<Button>(Resource.Id.signButton);
             _btnSignInSignOut.Touch += async (sender, e) =>
             {
-                if (!loading)
+                if (!_loading)
                 {
-                    loading = true;
+                    _loading = true;
 
                     var title = _btnSignInSignOut.Text.ToLower();
 
@@ -78,7 +78,7 @@ namespace AzureB2CXamTraditional.Droid
                         UpdateUserInfo(null);
                     }
 
-                    loading = false;
+                    _loading = false;
                 }
             };
         }
