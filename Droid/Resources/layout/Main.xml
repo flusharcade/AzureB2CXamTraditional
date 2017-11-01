@@ -28,28 +28,6 @@
         android:layout_gravity="fill"
         android:textAlignment="center"
         android:text="" />
-    <TextView
-        android:id="@+id/textView5"
-        android:layout_gravity="fill"
-        android:textAlignment="center"
-        android:text="API" />
-    <TextView
-        android:id="@+id/apiTextView"
-        android:layout_gravity="fill"
-        android:textAlignment="center"
-        android:text="" />
-    <Button
-        android:id="@+id/editButton"
-        android:layout_gravity="fill"
-        android:height="100dp"
-        android:layout_columnSpan="2"
-        android:text="Edit" />
-    <Button
-        android:id="@+id/callButton"
-        android:layout_gravity="fill"
-        android:height="100dp"
-        android:layout_columnSpan="2"
-        android:text="Call" />
     <Button
         android:id="@+id/signButton"
         android:layout_gravity="fill"

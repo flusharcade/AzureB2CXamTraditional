@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 using Android.App;
 using Android.Content.PM;
@@ -11,8 +12,7 @@ using Android.OS;
 using Android.Content;
 
 using Newtonsoft.Json.Linq;
-using System.Threading.Tasks;
-using Microsoft.WindowsAzure.MobileServices;
+
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace AzureB2CXamTraditional.Droid
@@ -31,24 +31,14 @@ namespace AzureB2CXamTraditional.Droid
         private TextView _lblId;
 
         /// <summary>
-        /// The lbl API.
-        /// </summary>
-        private TextView _lblApi;
-
-        /// <summary>
-        /// The button edit profile.
-        /// </summary>
-        private Button _btnEditProfile;
-
-        /// <summary>
-        /// The button call API.
-        /// </summary>
-        private Button _btnCallApi;
-
-        /// <summary>
         /// The button sign in sign out.
         /// </summary>
         private Button _btnSignInSignOut;
+
+        /// <summary>
+        /// The loading.
+        /// </summary>
+        private bool loading = false;
 
         /// <summary>
         /// Ons the create.
@@ -62,123 +52,124 @@ namespace AzureB2CXamTraditional.Droid
 
             _lblName = FindViewById<TextView>(Resource.Id.nameTextView);
             _lblId = FindViewById<TextView>(Resource.Id.idTextView);
-            _lblApi = FindViewById<TextView>(Resource.Id.apiTextView);
-
-            _btnEditProfile = FindViewById<Button>(Resource.Id.editButton);
-            _btnEditProfile.Touch += async (sender, e) =>
-            {
-            };
-
-            _btnCallApi = FindViewById<Button>(Resource.Id.callButton);
-            _btnCallApi.Touch += async (sender, e) =>
-            {
-            };
 
             _btnSignInSignOut = FindViewById<Button>(Resource.Id.signButton);
             _btnSignInSignOut.Touch += async (sender, e) =>
             {
-                await AuthenticateAsync();
+                if (!loading)
+                {
+                    loading = true;
+
+                    var title = _btnSignInSignOut.Text.ToLower();
+
+                    if (title.Equals("sign in"))
+                    {
+                        var ar = await Authenticate(this, App.Authority, App.ResourceId, App.ClientId, App.RedirectUri);
+
+                        if (ar != null)
+                        {
+                            var user = AuthHandler.RetrieveUserInfo(ar);
+                            UpdateUserInfo(user);
+                        }
+                    }
+                    else
+                    {
+                        await DeAuthenticate(App.Authority);
+                        UpdateUserInfo(null);
+                    }
+
+                    loading = false;
+                }
             };
-
-            //App.UiParent = new UIParent(this as Activity);
-
-            UpdateSignInState(false);
-
-            // Check to see if we have a User
-            // in the cache already.
-            try
-            {
-                //AuthenticationResult ar = await App.PCA.AcquireTokenSilentAsync(App.Scopes, AuthHandler.GetUserByPolicy(App.PCA.Users, App.PolicySignUpSignIn), App.Authority, false);
-                //UpdateUserInfo(AuthHandler.RetrieveUserInfo(ar));
-                //UpdateSignInState(true);
-            }
-            catch (Exception ex)
-            {
-                // Uncomment for debugging purposes
-                DisplayAlert($"Exception:", ex.ToString(), "Dismiss");
-
-                // Doesn't matter, we go in interactive mode
-                UpdateSignInState(false);
-            }
         }
 
         /// <summary>
         /// Updates the user info.
         /// </summary>
-        /// <param name="ar">Ar.</param>
+        /// <param name="user">User.</param>
         public void UpdateUserInfo(JObject user)
         {
-            _lblName.Text = user["name"]?.ToString();
-            _lblId.Text = user["oid"]?.ToString();
+            if (user != null)
+            {
+                _lblName.Text = user["name"]?.ToString();
+                _lblId.Text = user["oid"]?.ToString();
+            }
+            else {
+                _lblName.Text = "";
+                _lblId.Text = "";
+            }
+
+            UpdateSignInState(user != null);
         }
 
-        private MobileServiceClient client;
-        private MobileServiceUser user;
-        private async Task AuthenticateAsync()
+        /// <summary>
+        /// Authenticate the specified context, authority, resource, clientId and returnUri.
+        /// </summary>
+        /// <returns>The authenticate.</returns>
+        /// <param name="context">Context.</param>
+        /// <param name="authority">Authority.</param>
+        /// <param name="resource">Resource.</param>
+        /// <param name="clientId">Client identifier.</param>
+        /// <param name="returnUri">Return URI.</param>
+        public async Task<AuthenticationResult> Authenticate(Activity context, string authority, string resource, string clientId, string returnUri)
         {
+            var authContext = new AuthenticationContext(authority);
+            if (authContext.TokenCache.ReadItems().Any())
+                authContext = new AuthenticationContext(authContext.TokenCache.ReadItems().First().Authority);
 
-            string authority = "https://login.microsoftonline.com/tfp/viimee.onmicrosoft.com";
-            string resourceId = "42d59532-f239-4669-9c22-fa8243277139";
-            string clientId = "42d59532-f239-4669-9c22-fa8243277139";
-            string redirectUri = "https://viime.azurewebsites.net";
-
+            var uri = new Uri(returnUri);
+            var platformParams = new PlatformParameters(context);
             try
             {
-                AuthenticationContext ac = new AuthenticationContext(authority);
-                var ar = await ac.AcquireTokenAsync(resourceId, clientId,
-                    new Uri(redirectUri), new PlatformParameters(this));
-                JObject payload = new JObject();
-                payload["access_token"] = ar.AccessToken;
-                user = await client.LoginAsync(
-                    MobileServiceAuthenticationProvider.WindowsAzureActiveDirectory, payload);
+                var authResult = await authContext.AcquireTokenAsync(resource, clientId, uri, platformParams);
+                return authResult;
+            }
+            catch (AdalException ex) {
+                DisplayAlert($"Exception:", ex.ToString(), "Dismiss");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Ons the activity result.
+        /// </summary>
+        /// <param name="requestCode">Request code.</param>
+        /// <param name="resultCode">Result code.</param>
+        /// <param name="data">Data.</param>
+        protected override void OnActivityResult(int requestCode, Result resultCode, Intent data)
+        {
+            base.OnActivityResult(requestCode, resultCode, data);
+            AuthenticationAgentContinuationHelper.SetAuthenticationAgentContinuationEventArgs(requestCode, resultCode, data);
+        }
+
+        /// <summary>
+        /// Des the authenticate.
+        /// </summary>
+        /// <returns>The authenticate.</returns>
+        /// <param name="authority">Authority.</param>
+        public async Task DeAuthenticate(string authority)
+        {
+            try
+            {
+                var authContext = new AuthenticationContext(authority);
+                await Task.Factory.StartNew(() => {
+                    authContext.TokenCache.Clear();
+                });
             }
             catch (Exception ex)
             {
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.SetMessage(ex.Message);
-                builder.SetTitle("You must log in. Login Required");
-                builder.Create().Show();
+                DisplayAlert($"Exception:", ex.ToString(), "Dismiss");
             }
         }
 
-        async Task OnSignInSignOut()
-        {
-            try
-            {
-                if (_btnSignInSignOut.Text.ToLower() == "sign in")
-                {
-                    var ar = await AuthHandler.OnSignInSignOut(true);
-                    UpdateUserInfo(AuthHandler.RetrieveUserInfo(ar));
-                    UpdateSignInState(true);
-                }
-                else
-                {
-                    foreach (var user in App.PCA.Users)
-                    {
-                        App.PCA.Remove(user);
-                    }
-                    UpdateSignInState(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Checking the exception message 
-                // should ONLY be done for B2C
-                // reset and not any other error.
-
-                // Alert if any exception excludig user cancelling sign-in dialog
-                //else if (((ex as MsalException)?.ErrorCode != "authentication_canceled"))
-                //    await DisplayAlert($"Exception:", ex.ToString(), "Dismiss");
-            }
-        }
-
-        void UpdateSignInState(bool isSignedIn)
+        /// <summary>
+        /// Updates the state of the sign in.
+        /// </summary>
+        /// <param name="isSignedIn">If set to <c>true</c> is signed in.</param>
+        private void UpdateSignInState(bool isSignedIn)
         {
             _btnSignInSignOut.Text = isSignedIn ? "Sign out" : "Sign in";
-            _btnEditProfile.Visibility = isSignedIn ? ViewStates.Visible : ViewStates.Invisible;
-            _btnCallApi.Visibility = isSignedIn ? ViewStates.Visible : ViewStates.Invisible;
-            //slUser.IsVisible = isSignedIn;
-            _lblApi.Text = "";
         }
 
         /// <summary>
@@ -187,7 +178,7 @@ namespace AzureB2CXamTraditional.Droid
         /// <param name="title">Title.</param>
         /// <param name="message">Message.</param>
         /// <param name="cancel">Cancel.</param>
-        void DisplayAlert(string title, string message, string cancel)
+        private void DisplayAlert(string title, string message, string cancel)
         {
             Toast.MakeText(this, message, ToastLength.Long).Show();
         }
